@@ -2,6 +2,7 @@ let TelegramBot = require('node-telegram-bot-api');
 const fs = require('fs');
 const path = require('path');
 const DBUtils = require('./DBUtils');
+const {TELEGRAM_TOKEN} = require('./config');
 
 
 const {
@@ -19,9 +20,8 @@ const {
 const texts = require('./database/texts.json');
 const FeedBackUtil = require('./FeedBackUtil');
 
-const token = '5161448153:AAGDZkDdqVAog-XCrQ-ZE8d4xN-qb0ZzxXY';
 
-const bot = new TelegramBot(token, {
+const bot = new TelegramBot(TELEGRAM_TOKEN, {
     polling: true,
 });
 
