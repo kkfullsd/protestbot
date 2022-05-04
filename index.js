@@ -2,8 +2,17 @@ let TelegramBot = require('node-telegram-bot-api');
 const fs = require('fs');
 const path = require('path');
 const DBUtils = require('./DBUtils');
-const {TELEGRAM_TOKEN} = require('./config');
+const {TELEGRAM_TOKEN, FIREBASE_DATABASE_URL} = require('./config');
 
+const firebaseAdmin = require('firebase-admin');
+const serviceAccount = require("./firebaseServiceAccountKey.json");
+
+firebaseAdmin.initializeApp({
+    credential: firebaseAdmin.credential.cert(serviceAccount),
+    databaseURL: FIREBASE_DATABASE_URL
+});
+
+const database = firebaseAdmin.database();
 
 const {
     getTaskKeyboard_multi,
@@ -142,11 +151,11 @@ async function start() {
                 sendTask(cq.message.chat.id, task.image, task.text, getTaskKeyboard_multi(3));
                 break;
             case 'illdo_multi':
-                //TODO
+                recordIllDoToDatabase(cq.message.chat.id, task, true);
                 sendTask(cq.message.chat.id, task.image, texts.illdo_multi, getIlldoKeyboard_multi(task.lvl));
                 break;
             case 'illdo_single':
-                //TODO
+                recordIllDoToDatabase(cq.message.chat.id, task, false);
                 sendTask(cq.message.chat.id, task.image, texts.illdo_single, getIlldoKeyboard_single(task.lvl));
                 break;
             case 'help':
@@ -165,6 +174,25 @@ async function start() {
 
     });
 
+    function recordIllDoToDatabase(chatId, task, multiply) {
+        let user = {
+            chatId: chatId,
+            lvl: task.lvl,
+            category: task.category,
+            multiply: multiply,
+            createdAt: firebaseAdmin.database.ServerValue.TIMESTAMP,
+            date: (new Date()).toLocaleString('ru-RU')
+        };
+
+        database.ref("users/" + chatId + ":" + new Date().getTime()).set(user, function (error) {
+            if (error) {
+                console.log("Record error: " + error)
+            } else {
+                console.log("Record success: " + chatId)
+            }
+        })
+    }
+
     //TODO
     function handleFeedBack(cq) {
         async function msgHandler(msg) {
@@ -178,7 +206,7 @@ async function start() {
             let video = msg.video;
 
             if (photo) {
-                let photoId = photo[photo.length-1].file_id
+                let photoId = photo[photo.length - 1].file_id
                 attachments.photo = photoId
             }
 
@@ -197,8 +225,15 @@ async function start() {
             } catch (e) {
                 console.log(e);
             }
-            bot.sendMessage(msg.chat.id, "Данные отправлены", {reply_markup: {inline_keyboard: [[{text: "В главное меню", callback_data: 'cancel'}]]}})
-            
+            bot.sendMessage(msg.chat.id, "Данные отправлены", {
+                reply_markup: {
+                    inline_keyboard: [[{
+                        text: "В главное меню",
+                        callback_data: 'cancel'
+                    }]]
+                }
+            })
+
         }
 
         bot.on('message', msgHandler);
